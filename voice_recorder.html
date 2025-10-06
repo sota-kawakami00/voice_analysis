@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ボイスレコーダー</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f5f5f5;
+        }
+
+        .recorder-container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .title {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .record-button {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .record-button.start {
+            background-color: #ff4444;
+            color: white;
+        }
+
+        .record-button.stop {
+            background-color: #44ff44;
+            color: white;
+        }
+
+        .record-button:hover {
+            transform: scale(1.1);
+        }
+
+        .record-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .timer {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #333;
+        }
+
+        .status {
+            margin: 20px 0;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .audio-player {
+            margin: 20px 0;
+            width: 100%;
+        }
+
+        .controls {
+            margin: 20px 0;
+        }
+
+        .download-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 10px;
+        }
+
+        .download-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .download-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .analyze-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 10px;
+        }
+
+        .analyze-btn:hover {
+            background-color: #218838;
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .analysis-container {
+            margin-top: 30px;
+            text-align: left;
+            display: none;
+        }
+
+        .spectrogram-img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .features-table {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .features-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .features-table th,
+        .features-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .features-table th {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .loading {
+            display: none;
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+            height: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #28a745);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 5px;
+        }
+
+        .loading-text {
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        .loading-steps {
+            margin-top: 15px;
+            text-align: left;
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+        }
+
+        .loading-step {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .loading-step.active {
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        .loading-step.completed {
+            color: #28a745;
+        }
+
+        .loading-step::before {
+            content: "⏳ ";
+            margin-right: 5px;
+        }
+
+        .loading-step.active::before {
+            content: "🔄 ";
+        }
+
+        .loading-step.completed::before {
+            content: "✅ ";
+        }
+
+        /* 秘密の管理画面スタイル */
+        .admin-panel {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            overflow-y: auto;
+        }
+
+        .admin-content {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .admin-header {
+            text-align: center;
+            color: #00ff00;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .admin-section {
+            background-color: rgba(0, 50, 0, 0.8);
+            border: 1px solid #00ff00;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .admin-section h3 {
+            color: #00ff00;
+            margin-top: 0;
+            text-decoration: underline;
+        }
+
+        .admin-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: none;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            border-radius: 3px;
+        }
+
+        .admin-close:hover {
+            background-color: #00ff00;
+            color: #000;
+        }
+
+        .admin-info {
+            color: #00aa00;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .admin-stat {
+            background-color: rgba(0, 30, 0, 0.6);
+            padding: 10px;
+            border-radius: 3px;
+            border-left: 3px solid #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <div class="recorder-container">
+        <h1 class="title">ボイスレコーダー <span id="ampersand" style="cursor: pointer; user-select: none;">&</span> 声紋分析 (10秒制限)</h1>
+
+        <div class="timer" id="timer">00:00</div>
+
+        <button class="record-button start" id="recordButton">
+            録音開始
+        </button>
+
+        <div class="status" id="status">録音準備完了</div>
+
+        <!-- リアルタイム波形表示 -->
+        <canvas id="waveformCanvas" width="800" height="200" style="border: 1px solid #ccc; margin: 20px 0; display: none; background: #f8f9fa;"></canvas>
+
+        <audio class="audio-player" id="audioPlayer" controls style="display: none;"></audio>
+
+        <div class="controls">
+            <button class="download-btn" id="downloadBtn" style="display: none;">
+                ダウンロード
+            </button>
+            <button class="analyze-btn" id="analyzeBtn" style="display: none;">
+                声紋分析
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div class="loading-text">音声を分析中です...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="loading-steps" id="loadingSteps">
+                <div class="loading-step" id="step1">音声ファイルの読み込み</div>
+                <div class="loading-step" id="step2">スペクトログラム生成</div>
+                <div class="loading-step" id="step3">音声特徴量の抽出</div>
+                <div class="loading-step" id="step4">ピッチ分析</div>
+                <div class="loading-step" id="step5">結果の生成</div>
+            </div>
+        </div>
+
+        <div class="analysis-container" id="analysisContainer">
+            <h3>声紋分析結果</h3>
+            <img class="spectrogram-img" id="spectrogramImg" alt="スペクトログラム" style="display: none;">
+            <div class="features-table" id="featuresTable" style="display: none;">
+                <h4>音声特徴量</h4>
+                <table id="featuresTableContent"></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 秘密の管理画面 -->
+    <div class="admin-panel" id="adminPanel">
+        <button class="admin-close" onclick="closeAdminPanel()">CLOSE [X]</button>
+        <div class="admin-content">
+            <div class="admin-header">
+                █ VOICE ANALYSIS SYSTEM - ADMIN CONSOLE █
+            </div>
+
+            <div class="admin-section">
+                <h3>▸ SYSTEM STATUS</h3>
+                <div class="admin-stats">
+                    <div class="admin-stat">
+                        <strong>Server Status:</strong><br>
+                        <span style="color: #00ff00;">● ONLINE</span>
+                    </div>
+                    <div class="admin-stat">
+                        <strong>Port:</strong><br>
+                        8080
+                    </div>
+                    <div class="admin-stat">
+                        <strong>Debug Mode:</strong><br>
+                        <span style="color: #ffff00;">ENABLED</span>
+                    </div>
+                    <div class="admin-stat">
+                        <strong>Recording Limit:</strong><br>
+                        10 seconds
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <h3>▸ ANALYSIS MODULES</h3>
+                <div class="admin-info">
+                    ✓ Real-time Waveform Display<br>
+                    ✓ Mel Spectrogram (Voice Print)<br>
+                    ✓ STFT Spectrogram<br>
+                    ✓ Pitch (F0) Tracking<br>
+                    ✓ Spectral Centroid Analysis<br>
+                    ✓ Zero Crossing Rate<br>
+                    ✓ MFCC Feature Extraction
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <h3>▸ TECHNICAL SPECS</h3>
+                <div class="admin-info">
+                    <strong>Audio Processing:</strong> librosa 0.10.1<br>
+                    <strong>Backend:</strong> Flask 2.3.3<br>
+                    <strong>Visualization:</strong> matplotlib 3.7.2<br>
+                    <strong>Audio Input:</strong> Web Audio API<br>
+                    <strong>Sample Rate:</strong> Auto-detect (22050/16000 fallback)<br>
+                    <strong>Format Support:</strong> WAV, MP3, M4A<br>
+                    <strong>Image Output:</strong> PNG (base64 encoded)
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <h3>▸ DEBUG INFORMATION</h3>
+                <div class="admin-info">
+                    <div id="debugInfo">
+                        Session started: <span id="sessionTime"></span><br>
+                        Total analyses performed: <span id="analysisCount">0</span><br>
+                        Last analysis: <span id="lastAnalysis">None</span><br>
+                        Browser: <span id="browserInfo"></span><br>
+                        WebAudio supported: <span id="webAudioSupport"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <h3>▸ SECRET COMMANDS</h3>
+                <div class="admin-info">
+                    [CLASSIFIED] Triple-click activation successful<br>
+                    Access granted to: VOICE_ANALYSIS_ADMIN<br>
+                    Security level: GREEN<br>
+                    <span style="color: #ff6600;">⚠ Unauthorized access prohibited</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let recordingTimer;
+        let startTime;
+        let currentAudioBlob = null;
+        let audioContext;
+        let analyser;
+        let microphone;
+        let dataArray;
+        let animationId;
+        const MAX_RECORDING_TIME = 10; // 10秒制限
+
+        const recordButton = document.getElementById('recordButton');
+        const timerDisplay = document.getElementById('timer');
+        const statusDisplay = document.getElementById('status');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loading = document.getElementById('loading');
+        const analysisContainer = document.getElementById('analysisContainer');
+        const spectrogramImg = document.getElementById('spectrogramImg');
+        const featuresTable = document.getElementById('featuresTable');
+        const featuresTableContent = document.getElementById('featuresTableContent');
+        const waveformCanvas = document.getElementById('waveformCanvas');
+        const canvasCtx = waveformCanvas.getContext('2d');
+
+        // 秘密コマンド関連の変数
+        let clickCount = 0;
+        let lastClickTime = 0;
+        let sessionStartTime = new Date();
+        let totalAnalyses = 0;
+
+        // 秘密の管理画面関連の関数
+        function initializeAdminPanel() {
+            document.getElementById('sessionTime').textContent = sessionStartTime.toLocaleString();
+            document.getElementById('browserInfo').textContent = navigator.userAgent.split(' ').slice(-2).join(' ');
+            document.getElementById('webAudioSupport').textContent = (window.AudioContext || window.webkitAudioContext) ? '✓ YES' : '✗ NO';
+        }
+
+        function updateAnalysisCount() {
+            totalAnalyses++;
+            document.getElementById('analysisCount').textContent = totalAnalyses;
+            document.getElementById('lastAnalysis').textContent = new Date().toLocaleString();
+        }
+
+        function handleSecretClick() {
+            const now = Date.now();
+
+            if (now - lastClickTime > 1000) {
+                clickCount = 1;
+            } else {
+                clickCount++;
+            }
+
+            lastClickTime = now;
+
+            if (clickCount === 3) {
+                showAdminPanel();
+                clickCount = 0;
+            }
+        }
+
+        function showAdminPanel() {
+            initializeAdminPanel();
+            document.getElementById('adminPanel').style.display = 'block';
+            console.log('[ADMIN] Secret command executed - Admin panel opened');
+        }
+
+        function closeAdminPanel() {
+            document.getElementById('adminPanel').style.display = 'none';
+            console.log('[ADMIN] Admin panel closed');
+        }
+
+        // リアルタイム波形描画
+        function drawWaveform() {
+            if (!isRecording || !analyser) return;
+
+            animationId = requestAnimationFrame(drawWaveform);
+
+            analyser.getByteTimeDomainData(dataArray);
+
+            canvasCtx.fillStyle = '#f8f9fa';
+            canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+
+            canvasCtx.lineWidth = 2;
+            canvasCtx.strokeStyle = '#007bff';
+            canvasCtx.beginPath();
+
+            const sliceWidth = waveformCanvas.width * 1.0 / dataArray.length;
+            let x = 0;
+
+            for (let i = 0; i < dataArray.length; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * waveformCanvas.height / 2;
+
+                if (i === 0) {
+                    canvasCtx.moveTo(x, y);
+                } else {
+                    canvasCtx.lineTo(x, y);
+                }
+
+                x += sliceWidth;
+            }
+
+            canvasCtx.lineTo(waveformCanvas.width, waveformCanvas.height / 2);
+            canvasCtx.stroke();
+        }
+
+        // 録音時間の更新
+        function updateTimer() {
+            if (!isRecording) return;
+
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const remaining = MAX_RECORDING_TIME - elapsed;
+
+            if (remaining <= 0) {
+                stopRecording();
+                return;
+            }
+
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // 録音開始
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                // AudioContextとAnalyserの設定
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+
+                analyser.fftSize = 2048;
+                const bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    currentAudioBlob = audioBlob;
+
+                    audioPlayer.src = audioUrl;
+                    audioPlayer.style.display = 'block';
+                    downloadBtn.style.display = 'inline-block';
+                    analyzeBtn.style.display = 'inline-block';
+
+                    // ダウンロードボタンにBlobを設定
+                    downloadBtn.onclick = () => {
+                        const a = document.createElement('a');
+                        a.href = audioUrl;
+                        a.download = `recording_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.wav`;
+                        a.click();
+                    };
+
+                    // ストリームを停止
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                startTime = Date.now();
+
+                recordButton.textContent = '録音停止';
+                recordButton.className = 'record-button stop';
+                statusDisplay.textContent = '録音中...';
+
+                // 波形表示開始
+                waveformCanvas.style.display = 'block';
+                drawWaveform();
+
+                // タイマー開始
+                recordingTimer = setInterval(updateTimer, 100);
+
+            } catch (error) {
+                console.error('録音開始エラー:', error);
+                statusDisplay.textContent = 'マイクへのアクセスが拒否されました';
+            }
+        }
+
+        // 録音停止
+        function stopRecording() {
+            if (!isRecording || !mediaRecorder) return;
+
+            mediaRecorder.stop();
+            isRecording = false;
+
+            recordButton.textContent = '録音開始';
+            recordButton.className = 'record-button start';
+            statusDisplay.textContent = '録音完了';
+
+            // 波形表示停止
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+
+            clearInterval(recordingTimer);
+        }
+
+        // 録音ボタンのイベントリスナー
+        recordButton.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                // リセット
+                timerDisplay.textContent = '00:00';
+                audioPlayer.style.display = 'none';
+                downloadBtn.style.display = 'none';
+                analyzeBtn.style.display = 'none';
+                analysisContainer.style.display = 'none';
+                startRecording();
+            }
+        });
+
+        // ローディングステップの管理
+        function updateLoadingStep(stepNumber, isActive = false, isCompleted = false) {
+            const step = document.getElementById(`step${stepNumber}`);
+            if (!step) return;
+
+            step.classList.remove('active', 'completed');
+            if (isCompleted) {
+                step.classList.add('completed');
+            } else if (isActive) {
+                step.classList.add('active');
+            }
+        }
+
+        function updateProgress(percentage) {
+            const progressFill = document.getElementById('progressFill');
+            if (progressFill) {
+                progressFill.style.width = `${percentage}%`;
+            }
+        }
+
+        function resetLoadingSteps() {
+            for (let i = 1; i <= 5; i++) {
+                updateLoadingStep(i);
+            }
+            updateProgress(0);
+        }
+
+        // 音声分析関数
+        async function analyzeAudio() {
+            if (!currentAudioBlob) {
+                alert('録音された音声がありません');
+                return;
+            }
+
+            try {
+                // ローディング表示開始
+                loading.style.display = 'block';
+                analyzeBtn.disabled = true;
+                statusDisplay.textContent = '音声を分析中...';
+                resetLoadingSteps();
+
+                // ステップ1: ファイル準備
+                updateLoadingStep(1, true);
+                updateProgress(10);
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                const formData = new FormData();
+                formData.append('audio', currentAudioBlob, 'recording.wav');
+
+                updateLoadingStep(1, false, true);
+                updateLoadingStep(2, true);
+                updateProgress(25);
+
+                // リクエスト送信
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                updateProgress(50);
+                updateLoadingStep(2, false, true);
+                updateLoadingStep(3, true);
+
+                const result = await response.json();
+
+                updateProgress(75);
+                updateLoadingStep(3, false, true);
+                updateLoadingStep(4, true);
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                updateProgress(90);
+                updateLoadingStep(4, false, true);
+                updateLoadingStep(5, true);
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                if (result.success) {
+                    // 最終ステップ完了
+                    updateProgress(100);
+                    updateLoadingStep(5, false, true);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // 分析カウントを更新
+                    updateAnalysisCount();
+                    // スペクトログラム画像を表示
+                    spectrogramImg.src = 'data:image/png;base64,' + result.spectrogram;
+                    spectrogramImg.style.display = 'block';
+
+                    // 特徴量テーブルを作成
+                    let tableHTML = '<tr><th>特徴量</th><th>値</th></tr>';
+                    for (const [key, value] of Object.entries(result.features)) {
+                        tableHTML += `<tr><td>${key}</td><td>${value}</td></tr>`;
+                    }
+
+                    // デバッグ情報も追加
+                    if (result.debug_info) {
+                        tableHTML += '<tr><td colspan="2"><strong>デバッグ情報</strong></td></tr>';
+                        for (const [key, value] of Object.entries(result.debug_info)) {
+                            tableHTML += `<tr><td>${key}</td><td>${value}</td></tr>`;
+                        }
+                    }
+
+                    featuresTableContent.innerHTML = tableHTML;
+                    featuresTable.style.display = 'block';
+
+                    analysisContainer.style.display = 'block';
+                    statusDisplay.textContent = '分析完了✨';
+                } else {
+                    let errorMsg = '分析エラー: ' + result.error;
+                    if (result.error_type) {
+                        errorMsg += `\n\nエラータイプ: ${result.error_type}`;
+                    }
+                    alert(errorMsg);
+                    console.error('詳細なエラー情報:', result);
+                    statusDisplay.textContent = '分析エラーが発生しました';
+                }
+
+            } catch (error) {
+                console.error('分析エラー:', error);
+                alert('分析中にエラーが発生しました: ' + error.message);
+                statusDisplay.textContent = '分析エラーが発生しました';
+            } finally {
+                // ローディング非表示（少し遅延させて）
+                setTimeout(() => {
+                    loading.style.display = 'none';
+                }, 300);
+                analyzeBtn.disabled = false;
+            }
+        }
+
+        // 分析ボタンのイベントリスナー
+        analyzeBtn.addEventListener('click', analyzeAudio);
+
+        // ページ読み込み時の初期化
+        window.addEventListener('load', () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                statusDisplay.textContent = 'お使いのブラウザは音声録音をサポートしていません';
+                recordButton.disabled = true;
+            }
+
+            // 秘密コマンドの設定
+            const ampersand = document.getElementById('ampersand');
+            if (ampersand) {
+                ampersand.addEventListener('click', handleSecretClick);
+                ampersand.style.transition = 'color 0.3s';
+                ampersand.addEventListener('mouseover', () => {
+                    ampersand.style.color = '#007bff';
+                });
+                ampersand.addEventListener('mouseout', () => {
+                    ampersand.style.color = '';
+                });
+            }
+
+            console.log('[SYSTEM] Voice Analysis System initialized');
+            console.log('[SECRET] Triple-click the & symbol to access admin console');
+        });
+    </script>
+</body>
+</html>

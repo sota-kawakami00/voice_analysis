@@ -1,0 +1,38 @@
+# Apache設定ファイル（お名前.com共有サーバー用）
+
+# Python CGI の有効化
+Options +ExecCGI
+AddHandler cgi-script .py
+
+# WSGIアプリケーションの設定
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ wsgi.py/$1 [QSA,L]
+
+# 音声ファイルのアップロード制限緩和
+<Files "*.wav">
+    SetEnv PYTHONPATH /home/ユーザー名/voice_analysis
+</Files>
+
+<Files "*.mp3">
+    SetEnv PYTHONPATH /home/ユーザー名/voice_analysis
+</Files>
+
+# セキュリティ設定
+<FilesMatch "\.(py|pyc|pyo)$">
+    Deny from all
+</FilesMatch>
+
+<Files "wsgi.py">
+    Allow from all
+</Files>
+
+# ファイルサイズ制限の拡大（音声ファイル用）
+<IfModule mod_php.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+</IfModule>
+
+# HTTPSリダイレクト（推奨）
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
