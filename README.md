@@ -409,7 +409,59 @@ print('🔍 ヘルスチェック完了')
 
 ### 🔧 よくある問題と解決策
 
-#### 1. **インストール関連**
+#### 1. **音声ファイル形式エラー**
+
+```bash
+# エラー: LibsndfileError: Format not recognised / NoBackendError
+# 原因: 音声ファイルの形式が認識できない、または音声処理バックエンドの問題
+# 症状: 音声分析時に「音声ファイルの読み込みに失敗しました」エラー
+
+# 解決策1: 音声処理ライブラリの追加インストール
+pip install soundfile
+pip install audioread[ffmpeg]
+
+# 解決策2: FFmpegのインストール（システムレベル）
+# macOS:
+brew install ffmpeg
+
+# Ubuntu/Debian:
+sudo apt update
+sudo apt install ffmpeg
+
+# Windows:
+# https://ffmpeg.org/download.html からダウンロードしてインストール
+
+# 解決策3: 代替音声バックエンドのインストール
+pip install pydub[mp3]
+pip install mutagen
+
+# 解決策4: すべての音声関連依存関係の再インストール
+pip uninstall librosa soundfile audioread
+pip install librosa soundfile audioread[ffmpeg]
+```
+
+#### 音声形式対応状況
+| 形式 | 対応状況 | 必要な追加ライブラリ |
+|------|----------|---------------------|
+| WAV  | ✅ 標準対応 | なし |
+| MP3  | ⚠️ 要追加設定 | audioread[ffmpeg] |
+| M4A  | ⚠️ 要追加設定 | audioread[ffmpeg] |
+| FLAC | ⚠️ 要追加設定 | audioread[ffmpeg] |
+| WebM | ❌ 未対応 | ブラウザ設定変更が必要 |
+
+#### ブラウザ録音形式の設定
+```javascript
+// voice_recorder.html内で録音形式を明示的に指定
+const mediaRecorder = new MediaRecorder(stream, {
+    mimeType: 'audio/wav'  // WAV形式を強制
+});
+
+// 対応形式の確認
+console.log('対応形式:', MediaRecorder.isTypeSupported('audio/wav'));
+console.log('対応形式:', MediaRecorder.isTypeSupported('audio/webm'));
+```
+
+#### 2. **インストール関連**
 
 ```bash
 # 問題: pip install でエラーが発生
